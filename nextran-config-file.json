@@ -1,0 +1,49 @@
+{
+    "json_url": "nexran",
+    "xapp_name": "nexran",
+    "version": "0.1.0",
+    "containers": [
+        {
+            "name": "nexran",
+            "image": {
+                "registry": "xApp-registry.local:5008",
+                "name": "nexran",
+                "tag": "0.1.0"
+            }
+        }
+    ],
+    "messaging": {
+        "ports": [
+            {
+                "name": "rmr-data",
+                "container": "nexran-xapp",
+                "port": 4560,
+                "rxMessages": [ "RIC_SUB_RESP", "RIC_SUB_FAILURE", "RIC_INDICATION", "RIC_SUB_DEL_RESP", "RIC_SUB_DEL_FAILURE", "RIC_CONTROL_ACK", "RIC_CONTROL_FAILURE" ],
+                "txMessages": [ "RIC_SUB_REQ", "RIC_SUB_DEL_REQ", "RIC_CONTROL_REQ" ],
+                "policies": [1],
+                "description": "rmr receive data port for nexran-xapp"
+            },
+            {
+                "name": "rmr-route",
+                "container": "nexran-xapp",
+                "port": 4561,
+                "description": "rmr route port for nexran-xapp"
+            },
+            {
+                "name": "nbi",
+                "container": "nexran-xapp",
+                "port": 8000,
+                "description": "RESTful http northbound interface nexran-xapp"
+            }
+        ]
+    },
+    "rmr": {
+        "protPort": "tcp:4560",
+        "maxSize": 2072,
+        "numWorkers": 1,
+        "txMessages": [ "RIC_SUB_REQ", "RIC_SUB_DEL_REQ", "RIC_CONTROL_REQ" ],
+        "rxMessages": [ "RIC_SUB_RESP", "RIC_SUB_FAILURE", "RIC_INDICATION", "RIC_SUB_DEL_RESP", "RIC_SUB_DEL_FAILURE", "RIC_CONTROL_ACK", "RIC_CONTROL_FAILURE" ],
+	"policies": [1]
+    }
+}
+
