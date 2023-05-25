@@ -1,0 +1,152 @@
+-- **************************************************************
+-- E2SM-Zylinium
+-- Information Element Definitions
+--
+-- **************************************************************
+
+E2SM-ZYLINIUM-IEs {
+iso(1) identified-organization(3) dod(6) internet(1) private(4) enterprise(1) 53148 e2(1) version1 (1) e2sm(2) e2sm-ZYLINIUM-IEs (101)}
+
+DEFINITIONS AUTOMATIC TAGS ::=
+
+BEGIN
+
+-- **************************************************************
+-- Core IEs
+-- **************************************************************
+
+BlockedMask ::= SEQUENCE {
+    mask PrintableString(SIZE(1..1024)),
+    start REAL,
+    end REAL,
+    id INTEGER,
+    ...
+}
+
+-- **************************************************************
+-- Message IEs
+-- **************************************************************
+
+MaskConfigRequest ::= SEQUENCE {
+    dlDefault PrintableString(SIZE(1..1024)),
+    ulDefault PrintableString(SIZE(1..1024)),
+    dlSched SEQUENCE (SIZE(0..256)) OF BlockedMask,
+    ulSched SEQUENCE (SIZE(0..256)) OF BlockedMask,
+    ...
+}
+
+MaskStatusRequest ::= SEQUENCE {
+    ...
+}
+
+MaskStatusReport ::= SEQUENCE {
+    dlMask BlockedMask,
+    ulMask BlockedMask,
+    dlDefault PrintableString(SIZE(1..1024)),
+    ulDefault PrintableString(SIZE(1..1024)),
+    dlSched SEQUENCE (SIZE(0..256)) OF BlockedMask,
+    ulSched SEQUENCE (SIZE(0..256)) OF BlockedMask,
+    ...
+}
+
+-- **************************************************************
+-- RAN Function Description
+-- **************************************************************
+
+RANfunction-Name ::= SEQUENCE {
+    ranFunction-ShortName   PrintableString(SIZE(1..150,...)),
+    ranFunction-E2SM-OID    PrintableString(SIZE(1..1000,...)),
+    ranFunction-Description PrintableString(SIZE(1..150,...)),
+    ranFunction-Instance    INTEGER OPTIONAL,
+    ...
+}
+
+RANfunction-Description ::= SEQUENCE {
+    ranFunction-Name RANfunction-Name,
+    ...
+}
+
+-- **************************************************************
+-- Control Header contents
+-- **************************************************************
+
+E2SM-Zylinium-ControlMessage-Id ::= ENUMERATED {
+    maskConfigRequest,
+    maskStatusRequest,
+    ...
+}
+
+E2SM-Zylinium-ControlHeader ::= CHOICE {
+    controlHeaderFormat1 E2SM-Zylinium-ControlHeader-Format1,
+    ...
+}
+
+E2SM-Zylinium-ControlHeader-Format1 ::= SEQUENCE {
+    controlMessageId E2SM-Zylinium-ControlMessage-Id,
+    ...
+}
+
+-- **************************************************************
+-- Control Message contents
+-- **************************************************************
+
+E2SM-Zylinium-ControlMessage ::= CHOICE {
+    controlMessageFormat1 E2SM-Zylinium-ControlMessage-Format1,
+    ...
+}
+
+E2SM-Zylinium-ControlMessage-Format1 ::= CHOICE {
+    maskConfigRequest MaskConfigRequest,
+    maskStatusRequest MaskStatusRequest,
+    ...
+}
+
+-- ***************************************************
+-- Control Outcome contents
+-- ***************************************************
+
+E2SM-Zylinium-ControlOutcome ::= CHOICE {
+    controlOutcomeFormat1 E2SM-Zylinium-ControlOutcome-Format1,
+    ...
+}
+
+E2SM-Zylinium-ControlOutcome-Format1 ::= CHOICE {
+    maskStatusReport MaskStatusReport,
+    ...
+}
+
+E2SM-Zylinium-EventTriggerDefinition ::= CHOICE {
+    ranEventDefinition E2SM-Zylinium-EventTriggerDefinition-RanEvent,
+    ...
+}
+
+E2SM-Zylinium-EventTriggerDefinition-RanEvent ::= SEQUENCE {
+    ...
+}
+
+E2SM-Zylinium-ActionType ::= ENUMERATED {
+    maskStatusReport,
+    ...
+}
+
+E2SM-Zylinium-ActionDefinition ::= SEQUENCE {
+    actionType E2SM-Zylinium-ActionType,
+    ...
+}
+
+E2SM-Zylinium-IndicationType ::= ENUMERATED {
+    maskStatusReport,
+    ...
+}
+
+E2SM-Zylinium-IndicationHeader ::= CHOICE {
+    indicationType E2SM-Zylinium-IndicationType,
+    ...
+}
+
+E2SM-Zylinium-IndicationMessage ::= CHOICE {
+    maskStatusReport MaskStatusReport,
+    ...
+}
+
+END

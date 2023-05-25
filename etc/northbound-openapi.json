@@ -1,0 +1,1340 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "NexRAN Northbound/Admin API",
+        "description": "This document describes the NexRAN northbound (administrative) API.",
+        "version": "1.0.0",
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        }
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8000/v1"
+        }
+    ],
+    "components": {
+        "schemas": {
+            "Error": {
+                "properties": {
+                    "errors": {
+                        "items": {
+                            "example": "An error message.",
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            },
+            "AppConfig": {
+                "properties": {
+                    "kpm_interval_index": {
+                        "description": "The KPM report interval; takes effect on new subscriptions.  Index values 0-19 (10ms to 10240ms; 12 = 1024ms; 18 = 5120ms) accepted.",
+                        "example": 12,
+                        "type": "integer"
+                    },
+		    "influxdb_url": {
+			"description": "An InfluxDB URL to log incoming metrics into.  Should be either http or https scheme, and can include username/password.",
+			"example": "http://localhost:8086?db=foo",
+			"type": "string"
+		    }
+                },
+                "type": "object"
+            },
+            "BlockedMask": {
+                "properties": {
+                    "mask": {
+                        "description": "A hex string encoding a a DL RBG or UL PRB block mask.",
+                        "example": "0x1",
+                        "type": "string"
+                    },
+		    "start": {
+			"description": "The start time (UTC seconds) that this mask will take effect.  0.0 is the appropriate value to use to indicate `now`.",
+			"example": 0.0,
+			"type": "float"
+		    },
+		    "end": {
+			"description": "The end time (UTC seconds) when this mask should be removed.  If unset or 0.0, this mask may remain in effect continuously.",
+			"example": 0.0,
+			"type": "float"
+		    },
+		    "id": {
+			"description": "An optional integer id value for the mask; may help caller disambiguate which mask is in effect.",
+			"example": 3735944943,
+			"type": "integer"
+		    }
+                },
+                "type": "object"
+            },
+            "NodeB": {
+                "properties": {
+                    "name": {
+                        "description": "A NexRAN server-chosen unique NodeB name composed from the `type`, `mcc`, `mnc`, and `id` properties.",
+                        "example": "enB_macro_001_001_00000001",
+                        "readOnly": true,
+                        "type": "string",
+                        "x-immutable-on-put": true
+                    },
+                    "type": {
+                        "description": "The type of NodeB; must be one of the types listed in the enumeration.",
+                        "example": "eNB",
+                        "type": "string",
+                        "enum": [
+                            "gNB","gNB-CU-UP","gNB-DU","en-gNB","eNB","ng-eNB"
+                        ],
+                        "x-immutable-on-put": true
+                    },
+                    "mcc": {
+                        "description": "The NodeB's 3-digit `mcc`.",
+                        "example": "001",
+                        "type": "string",
+                        "x-immutable-on-put": true
+                    },
+                    "mnc": {
+                        "description": "The NodeB's 2- or 3-digit `mnc`.",
+                        "example": "001",
+                        "type": "string",
+                        "x-immutable-on-put": true
+                    },
+                    "id": {
+                        "description": "The eNB or gNB ID as an integer.  By default, we assume that this is the 20-bit identifier, but for the eNB case, you can specify the optional `id_len` parameter to set a different bit count for the longmacro or shortmacro cases.",
+			"default": 20,
+                        "example": 1,
+                        "format": "int32",
+                        "type": "integer",
+                        "x-immutable-on-put": true
+                    },
+                    "id_len": {
+                        "description": "The bit length of the NodeB ID.",
+                        "example": 20,
+                        "type": "integer",
+                        "x-immutable-on-put": true
+                    },
+                    "config": {
+                        "properties": {
+                            "total_prb": {
+                                "example": 50,
+                                "format": "uint32",
+                                "type": "integer"
+                            }
+                        },
+                        "readOnly": true,
+                        "type": "object"
+                    },
+                    "status": {
+                        "properties": {
+                            "connected": {
+                                "example": true,
+                                "type": "boolean"
+                            }
+                        },
+                        "readOnly": true,
+                        "type": "object"
+                    },
+                    "slices": {
+                        "description": "A list of bound Slice names.",
+                        "items": {
+                            "type": "string"
+                        },
+                        "readOnly": true,
+                        "type": "array"
+                    },
+                    "dl_mask": {
+                        "description": "The current BlockedMask in use in the downlink; informational and read-only.",
+                        "type": "object",
+                        "schema": {
+                            "$ref": "#/components/schemas/BlockedMask"
+                        },
+			"default": "0x0",
+			"example": "0x1",
+                        "x-immutable-on-put": true,
+                        "x-immutable-on-post": true
+                    },
+                    "ul_mask": {
+                        "description": "The current BlockedMask in use in the uplink; informational and read-only.",
+                        "type": "object",
+                        "schema": {
+                            "$ref": "#/components/schemas/BlockedMask"
+                        },
+			"default": "0x0",
+			"example": "0x1",
+                        "x-immutable-on-put": true,
+                        "x-immutable-on-post": true
+                    },
+                    "dl_mask_def": {
+                        "description": "A hex string of masked RBGs in the downlink; default value set when there is not a currently-scheduled mask in place.",
+                        "type": "string",
+			"default": "0x0",
+			"example": "0x1"
+                    },
+                    "ul_mask_def": {
+                        "description": "A hex string of masked PRBs in the uplink; default value set when there is not a currently-scheduled mask in place.",
+                        "type": "string",
+			"default": "0x0",
+			"example": "0x1"
+                    },
+                    "dl_mask_sched": {
+                        "description": "A list of BlockedMasks for the downlink.  Overlap is unchecked in this implementation.  If you do not set the `end` property, or set it to `0.0`, that mask will only be replaced when the subsequent mask's `start` time is reached.  If you do set the `end` property, the subsequent mask's `start` time will *not* be checked until `end` is reached (we do not handle overlap nor ordering).  If you do not set the `id` property, it will default to `0`.  Note that when the first entry in this list becomes the active mask, it remains the first entry until it expires or is superseded by the following entry.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BlockedMask"
+                        },
+			"default": []
+                    },
+                    "ul_mask_sched": {
+                        "description": "A list of BlockedMasks for the uplink.  Overlap is unchecked in this implementation.  If you do not set the `end` property, or set it to `0.0`, that mask will only be replaced when the subsequent mask's `start` time is reached.  If you do set the `end` property, the subsequent mask's `start` time will *not* be checked until `end` is reached (we do not handle overlap nor ordering).  If you do not set the `id` property, it will default to `0`.  Note that when the first entry in this list becomes the active mask, it remains the first entry until it expires or is superseded by the following entry.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BlockedMask"
+                        },
+			"default": []
+                    }
+                },
+                "required": [
+                    "id","mcc","mnc","type"
+                ],
+                "type": "object"
+            },
+            "NodeBList": {
+                "properties": {
+                    "nodebs": {
+                        "items": {
+                            "$ref": "#/components/schemas/NodeB"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            },
+            "FixedAllocationPolicy": {
+                "description": "The `fixed` policy describes a simple model where each slice is given min/max PRB values for downlink and uplink.",
+                "properties": {
+                    "type": {
+                        "default": "fixed",
+                        "description": "The type name for this policy (always `fixed`; a discriminator)",
+                        "enum": [
+                            "fixed"
+                        ],
+                        "example": "fixed",
+                        "type": "string"
+                    },
+                    "min_prb_dl": {
+                        "description": "An integer number of PRBs (1-275)",
+                        "example": 50,
+                        "maximum": 275,
+                        "minimum": 1,
+                        "type": "integer"
+                    },
+                    "max_prb_dl": {
+                        "description": "An integer number of PRBs (1-275)",
+                        "example": 50,
+                        "maximum": 275,
+                        "minimum": 1,
+                        "type": "integer"
+                    },
+                    "min_prb_ul": {
+                        "description": "An integer number of PRBs (1-275)",
+                        "example": 50,
+                        "maximum": 275,
+                        "minimum": 1,
+                        "type": "integer"
+                    },
+                    "max_prb_ul": {
+                        "description": "An integer number of PRBs (1-275)",
+                        "example": 50,
+                        "maximum": 275,
+                        "minimum": 1,
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "type","share","min_prb_dl","max_prb_dl","min_prb_ul","max_prb_ul"
+                ],
+                "type": "object"
+            },
+            "ProportionalAllocationPolicy": {
+                "description": "The `proportional` policy describes a simple model where the `share` of each Slice at a NodeB is summed, and then an allocation percentage of PRBs is derived by dividing each Slice's `share` against the sum of all `share`s.",
+                "properties": {
+                    "type": {
+                        "default": "proportional",
+                        "description": "The type name for this policy (always `proportional`; a discriminator).",
+                        "enum": [
+                            "proportional"
+                        ],
+                        "example": "proportional",
+                        "type": "string"
+                    },
+                    "share": {
+                        "description": "An integer share (0-1024)",
+                        "example": 1024,
+                        "maximum": 1024,
+                        "minimum": 0,
+                        "type": "integer"
+                    },
+		    "auto_equalize": {
+			"description": "Include this slice in the list of slices whose throughput is equalized by dynamic reallocation of share values.",
+			"type": "boolean"
+		    },
+		    "throttle": {
+			"description": "Throttle this slice's throughput for <throttle_period> seconds when <throttle_threshold> is exceeded.",
+			"type": "boolean"
+		    },
+		    "throttle_threshold": {
+			"description": "If the total bytes used by a slice over the past <throttle_period> seconds exceeds this threshold, the slice is throttled.",
+			"type": "integer"
+		    },
+		    "throttle_period": {
+			"description": "The time in seconds to throttle the overutilizing slice.",
+			"type": "integer"
+		    },
+		    "throttle_share": {
+			"description": "A fixed share to throttle to; takes precedence over <throttle_target>.",
+			"type": "integer"
+		    },
+		    "throttle_target": {
+			"description": "A target bandwidth to dynamically throttle to.",
+			"type": "integer"
+		    }
+                },
+                "required": [
+                    "type","share"
+                ],
+                "type": "object"
+            },
+            "Slice": {
+                "properties": {
+                    "name": {
+                        "description": "The name of the slice.",
+                        "example": "my_slice",
+                        "type": "string",
+                        "x-immutable-on-put": true
+                    },
+                    "allocation_policy": {
+			"oneOf": [
+			    {
+				"$ref": "#/components/schemas/ProportionalAllocationPolicy"
+			    },
+			    {
+				"$ref": "#/components/schemas/FixedAllocationPolicy"
+			    }
+			],
+			"discriminator": {
+			    "propertyName": "type"
+			}
+                    },
+                    "ues": {
+                        "description": "A list of bound Ue IMSIs.",
+                        "items": {
+                            "example": "000000000000001",
+                            "type": "string"
+                        },
+                        "readOnly": true,
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "type": "object"
+            },
+            "SliceList": {
+                "properties": {
+                    "slices": {
+                        "items": {
+                            "$ref": "#/components/schemas/Slice"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            },
+            "Ue": {
+                "properties": {
+                    "crnti": {
+                        "description": "The UE's current C-RNTI.",
+                        "example": "0001",
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "imsi": {
+                        "description": "The UE's internation mobile subscriber identity (IMSI).",
+                        "example": "000000000000001",
+                        "type": "string",
+                        "x-immutable-on-put": true
+                    },
+                    "status": {
+                        "properties": {
+                            "connected": {
+                                "description": "True if the UE is connected to a NodeB.",
+                                "example": true,
+                                "readOnly": true,
+                                "type": "boolean"
+                            }
+                        },
+                        "readOnly": true,
+                        "type": "object"
+                    },
+                    "tmsi": {
+                        "description": "The UE's current temporary mobile subscriber identity (TMSI)",
+                        "example": "deadbeef",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "imsi"
+                ],
+                "type": "object"
+            },
+            "UeList": {
+                "properties": {
+                    "ues": {
+                        "items": {
+                            "$ref": "#/components/schemas/Ue"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            },
+            "Version": {
+                "properties": {
+                    "branch": {
+                        "example": "master",
+                        "type": "string"
+                    },
+                    "buildTimestamp": {
+                        "example": "2020-12-18T21:06:28.000Z",
+                        "format": "date-time",
+                        "type": "string"
+                    },
+                    "commit": {
+                        "example": "deadbeef",
+                        "type": "string"
+                    },
+                    "major": {
+                        "example": 0,
+                        "type": "integer"
+                    },
+                    "minor": {
+                        "example": 1,
+                        "type": "integer"
+                    },
+                    "patch": {
+                        "example": 0,
+                        "type": "integer"
+                    },
+                    "version": {
+                        "example": "0.1.0",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "major","minor","patch","version"
+                ],
+                "type": "object"
+            }
+        }
+    },
+    "paths": {
+        "/nodebs": {
+            "get": {
+                "description": "List all NodeBs.",
+                "operationId": "getNodeBs",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NodeBList"
+                                }
+                            }
+                        },
+                        "description": "List of NodeBs."
+                    }
+                },
+                "tags": [
+                    "NodeB"
+                ]
+            },
+            "post": {
+                "description": "Create a new NodeB",
+                "operationId": "postNodeB",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/NodeB"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NodeB"
+                                }
+                            }
+                        },
+                        "description": "The nodeb was created and given the `name` value in the returned NodeB."
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid parameter value."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "The nodeb already exists."
+                    }
+                },
+                "tags": [
+                    "NodeB"
+                ],
+                "x-codegen-request-body-name": "body"
+            }
+        },
+        "/nodebs/{nodeb_name}": {
+            "delete": {
+                "description": "Delete a NodeB.  NexRAN unsubscribes from this NodeB via the RIC, and removes any configuration applied to it via the RIC E2.",
+                "operationId": "deleteNodeB",
+                "parameters": [
+                    {
+                        "description": "The NodeB `name` key's value (server-created, returned from previous `/nodebs` `GET` or `POST` invocations).",
+                        "in": "path",
+                        "name": "nodeb_name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {},
+                        "description": "The NodeB was deleted."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "The NodeB does not exist."
+                    }
+                },
+                "tags": [
+                    "NodeB"
+                ]
+            },
+            "get": {
+                "description": "Get a single NodeB.",
+                "operationId": "getNodeB",
+                "parameters": [
+                    {
+                        "description": "The NodeB `name` key's value (server-created, returned from previous `/nodebs` `GET` or `POST` invocations).",
+                        "in": "path",
+                        "name": "nodeb_name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NodeB"
+                                }
+                            }
+                        },
+                        "description": "The requested NodeB."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "the requested nodeb was not found"
+                    }
+                },
+                "tags": [
+                    "NodeB"
+                ]
+            },
+            "put": {
+                "description": "Update a NodeB.  Note that you cannot change the `name`, `type`, `mcc`, `mnc`, `id`, or `id_len` properties, as indicated by the presence of the `x-immutable-on-put` property metadata in the `NodeB` model.",
+                "operationId": "putNodeB",
+                "parameters": [
+                    {
+                        "description": "The NodeB `name` key's value (server-created, returned from previous `/nodebs` `GET` or `POST` invocations).",
+                        "in": "path",
+                        "name": "nodeb_name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/NodeB"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "202": {
+                        "content": {},
+                        "description": "The NodeB was updated."
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid parameter value."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "The NodeB does not exist."
+                    }
+                },
+                "tags": [
+                    "NodeB"
+                ],
+                "x-codegen-request-body-name": "body"
+            }
+        },
+        "/nodebs/{nodeb_name}/slices/{slice_name}": {
+            "delete": {
+                "description": "Unbind a single slice from a NodeB.",
+                "operationId": "unbindSliceFromNodeB",
+                "parameters": [
+                    {
+                        "description": "The NodeB `name` key's value (server-created, returned from previous `/nodebs` `GET` or `POST` invocations).",
+                        "in": "path",
+                        "name": "nodeb_name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The Slice name.",
+                        "in": "path",
+                        "name": "slice_name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {},
+                        "description": "Slice is no longer bound to the NodeB."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "The Slice has not yet been bound to the NodeB."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Either the Slice or NodeB does not exist."
+                    }
+                },
+                "tags": [
+                    "NodeB"
+                ]
+            },
+            "post": {
+                "description": "Bind a single slice to a NodeB.",
+                "operationId": "bindSliceToNodeB",
+                "parameters": [
+                    {
+                        "description": "The NodeB `name` key's value (server-created, returned from previous `/nodebs` `GET` or `POST` invocations).",
+                        "in": "path",
+                        "name": "nodeb_name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The Slice name.",
+                        "in": "path",
+                        "name": "slice_name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {},
+                        "description": "Slice is bound to the NodeB."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "The Slice is already bound to the NodeB."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Either the Slice or NodeB does not exist."
+                    }
+                },
+                "tags": [
+                    "NodeB"
+                ]
+            }
+        },
+        "/slices": {
+            "get": {
+                "description": "List all slices",
+                "operationId": "getSlices",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SliceList"
+                                }
+                            }
+                        },
+                        "description": "List of Slices"
+                    }
+                },
+                "tags": [
+                    "Slice"
+                ]
+            },
+            "post": {
+                "description": "Create a new Slice",
+                "operationId": "postSlice",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Slice"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Slice"
+                                }
+                            }
+                        },
+                        "description": "The slice was created."
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid parameter value."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "This Slice already exists."
+                    }
+                },
+                "tags": [
+                    "Slice"
+                ],
+                "x-codegen-request-body-name": "body"
+            }
+        },
+        "/slices/{slice_name}": {
+            "delete": {
+                "description": "Delete a Slice.  NexRAN unbinds this Slice from any NodeBs, and unbinds any UEs from the Slice.",
+                "operationId": "deleteSlice",
+                "parameters": [
+                    {
+                        "description": "The `Slice.name` key's value as returned from a previous API invocation of Slice listings or Slice creation.",
+                        "in": "path",
+                        "name": "slice_name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {},
+                        "description": "The NodeB was deleted."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "The NodeB does not exist."
+                    }
+                },
+                "tags": [
+                    "Slice"
+                ]
+            },
+            "get": {
+                "description": "Get a single slice",
+                "operationId": "getSlice",
+                "parameters": [
+                    {
+                        "description": "The `Slice.name` key's value as returned from a previous API invocation of Slice listings or Slice creation.",
+                        "in": "path",
+                        "name": "slice_name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Slice"
+                                }
+                            }
+                        },
+                        "description": "The requested Slice"
+                    }
+                },
+                "tags": [
+                    "Slice"
+                ]
+            },
+            "put": {
+                "description": "Update a Slice.  Note that you cannot change the `name` property, so this operation is only useful to change the Slice's AllocationPolicy.",
+                "operationId": "putSlice",
+                "parameters": [
+                    {
+                        "description": "The `Slice.name` key's value as returned from a previous API invocation of Slice listings or Slice creation.",
+                        "in": "path",
+                        "name": "slice_name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Slice"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "202": {
+                        "content": {},
+                        "description": "The Slice was updated."
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid parameter value."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Slice already bound to NodeB that does not support this AllocationPolicy."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "The Slice does not exist."
+                    }
+                },
+                "tags": [
+                    "Slice"
+                ],
+                "x-codegen-request-body-name": "body"
+            }
+        },
+        "/slices/{slice_name}/ues/{imsi}": {
+            "delete": {
+                "description": "Unbind a single ue from a Slice.",
+                "operationId": "unbindUeFromSlice",
+                "parameters": [
+                    {
+                        "description": "The Slice name.",
+                        "in": "path",
+                        "name": "slice_name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The Ue IMSI.",
+                        "in": "path",
+                        "name": "imsi",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {},
+                        "description": "Ue is no longer bound to the Slice."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "The Ue has not yet been bound to the Slice."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Either the Ue or Slice does not exist."
+                    }
+                },
+                "tags": [
+                    "Slice"
+                ]
+            },
+            "post": {
+                "description": "Bind a single Ue to a Slice.",
+                "operationId": "bindUeToSlice",
+                "parameters": [
+                    {
+                        "description": "The Slice name.",
+                        "in": "path",
+                        "name": "slice_name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The Ue IMSI.",
+                        "in": "path",
+                        "name": "imsi",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {},
+                        "description": "Ue is bound to the Slice."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "The Ue is already bound to the Slice."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Either the Ue or Slice does not exist."
+                    }
+                },
+                "tags": [
+                    "Slice"
+                ]
+            }
+        },
+        "/ues": {
+            "get": {
+                "description": "List all ues.",
+                "operationId": "getUes",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UeList"
+                                }
+                            }
+                        },
+                        "description": "List of Ues"
+                    }
+                },
+                "tags": [
+                    "Ue"
+                ]
+            },
+            "post": {
+                "description": "Create a new Ue.",
+                "operationId": "postUe",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Ue"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Ue"
+                                }
+                            }
+                        },
+                        "description": "The Ue was created."
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid parameter value."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "The Ue already exists."
+                    }
+                },
+                "tags": [
+                    "Ue"
+                ],
+                "x-codegen-request-body-name": "body"
+            }
+        },
+        "/ues/{imsi}": {
+            "delete": {
+                "description": "Delete a Ue.  NexRAN unbinds this Ue from any Slices.",
+                "operationId": "deleteUe",
+                "parameters": [
+                    {
+                        "description": "The Ue `imsi` key's value as returned from a previous API invocation of Ue listings or Ue creation.",
+                        "in": "path",
+                        "name": "imsi",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {},
+                        "description": "The Ue was deleted."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "The Ue does not exist."
+                    }
+                },
+                "tags": [
+                    "Ue"
+                ]
+            },
+            "get": {
+                "description": "Get a single Ue.",
+                "operationId": "getUe",
+                "parameters": [
+                    {
+                        "description": "The Ue `imsi` key's value as returned from a previous API invocation of Ue listings or Ue creation.",
+                        "in": "path",
+                        "name": "imsi",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Ue"
+                                }
+                            }
+                        },
+                        "description": "The requested Ue"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "The Ue does not exist."
+                    }
+                },
+                "tags": [
+                    "Ue"
+                ]
+            },
+            "put": {
+                "description": "Update a Ue.  Note that you cannot change the `imsi` property, so this operation is only useful to change the UE's `tmsi` property, if administratively necessary.",
+                "operationId": "putUe",
+                "parameters": [
+                    {
+                        "description": "The Ue `imsi` key's value as returned from a previous API invocation of Ue listings or Ue creation.",
+                        "in": "path",
+                        "name": "imsi",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Ue"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "202": {
+                        "content": {},
+                        "description": "The Ue was updated."
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid parameter value."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "The Ue does not exist."
+                    }
+                },
+                "tags": [
+                    "Ue"
+                ],
+                "x-codegen-request-body-name": "body"
+            }
+        },
+        "/version": {
+            "get": {
+                "description": "Get NexRAN version information.",
+                "operationId": "getVersion",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Version"
+                                }
+                            }
+                        },
+                        "description": "Version information."
+                    }
+                },
+                "tags": [
+                    "General"
+                ]
+            }
+        },
+        "/appconfig": {
+            "get": {
+                "description": "Get the AppConfig.",
+                "operationId": "getAppConfig",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AppConfig"
+                                }
+                            }
+                        },
+                        "description": "The requested AppConfig"
+                    }
+                },
+                "tags": [
+                    "AppConfig"
+                ]
+            },
+            "put": {
+                "description": "Update the AppConfig.",
+                "operationId": "putAppConfig",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AppConfig"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "202": {
+                        "content": {},
+                        "description": "The AppConfig was updated."
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid parameter value."
+                    }
+                },
+                "tags": [
+                    "AppConfig"
+                ],
+                "x-codegen-request-body-name": "body"
+            }
+        }
+    }
+}
